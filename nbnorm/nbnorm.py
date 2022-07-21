@@ -1,11 +1,9 @@
-#!/usr/bin/env python3
-
 import sys
 import re
 from pathlib import Path
 from enum import Enum
 
-from util import xpath, xpath_create # replace_file_with_string, truncate
+from xpath import xpath, xpath_create 
 
 ####################
 import IPython
