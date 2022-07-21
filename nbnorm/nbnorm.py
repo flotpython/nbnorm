@@ -3,7 +3,7 @@ import re
 from pathlib import Path
 from enum import Enum
 
-from xpath import xpath, xpath_create 
+from nbnorm.xpath import xpath, xpath_create 
 
 ####################
 import IPython
