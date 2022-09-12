@@ -102,15 +102,16 @@ class Notebook:
 
     def parse(self):
         try:
-            with open(self.filename) as f:
-                #self.notebook = nbformat.reader.read(f)
-                self.notebook = jupytext.read(f)
-
+            self.notebook = jupytext.read(self.filename)
         except:
             print(f"Could not parse {self.filename}")
             import traceback
             traceback.print_exc()
 
+    # def debug(self, message):
+    #     print(f"-- {message} - we have {len(self.notebook.cells)} cells")
+    #     for index, cell in enumerate(self.notebook.cells[:3]):
+    #         print(f"cell #{index} has type {cell.cell_type}")
 
     def xpath(self, path):
         return xpath(self.notebook, path)
