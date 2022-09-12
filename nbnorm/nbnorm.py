@@ -3,7 +3,7 @@ import re
 from pathlib import Path
 from enum import Enum
 
-from nbnorm.xpath import xpath, xpath_create 
+from nbnorm.xpath import xpath, xpath_create
 
 ####################
 import IPython
@@ -137,23 +137,31 @@ class Notebook:
                     return line[2:]
         return "NO HEADING 1 found"
 
-    def set_title_from_heading1(self, force_title):
+    def set_title_from_heading1(self, *, title, force_title):
         """
-        set 'nbhosting.title' in notebook metadata from the first heading 1 cell
-        if force_title is provided, always set title
-        if force_title is None or False, set 'nbhosting.title' only if it is not set
+        set 'nbhosting.title'
+        if title=='h1', use the first heading 1 cell
+        if already present: not overwritten except if force_title
         """
-        title = self.xpath_create('metadata.nbhosting.title', str)
-        if title and force_title is None:
-            pass
+        # do not do anything if title not provided
+        if title is None:
+            return
+        # retrieve previous one
+        old_title = self.xpath_create('metadata.nbhosting.title', str)
+        # compute what it would become
+        if title == 'h1':
+            new_title = self.first_heading1()
         else:
-            if force_title == 'h1':
-                new_name = self.first_heading1()
-            elif force_title is not None:
-                new_name = force_title
-            else:
-                new_name = self.first_heading1()
-            self.xpath('metadata.nbhosting')['title'] = new_name
+            new_title = title
+        # if already present, do nothing unless force_title
+        if old_title and force_title is None:
+            if self.verbose and new_title != old_title:
+                print(f"---- {self.filename}:\n"
+                      f"     title `{old_title}`\n"
+                      f"     not changed to `{new_title}`")
+                print(f"  use -f to override")
+            return
+        self.xpath('metadata.nbhosting')['title'] = new_title
         if self.verbose:
             print(f"{self.filename} title -> {self.xpath('metadata.nbhosting.title')}")
 
@@ -407,11 +415,13 @@ class Notebook:
         print(f"{self.filename} saved")
 
 
-    def full_monty(self, *, force_title, style_rank, license_rank, rise, exts, backquotes, urls):
+    def full_monty(self, *, title, force_title,
+                   style_rank, license_rank,
+                   rise, exts, backquotes, urls):
         self.parse()
         self.clear_all_outputs()
         self.remove_empty_cells()
-        self.set_title_from_heading1(force_title=force_title)
+        self.set_title_from_heading1(title=title, force_title=force_title)
         self.fill_rise_metadata(rise)
         self.fill_extensions_metadata(exts)
         if style_rank is not None:
@@ -450,10 +460,15 @@ usage = """normalize notebooks
 def main():
     parser = ArgumentParser(usage=usage)
     parser.add_argument(
-        "-t", "--force-title", action="store", dest="force_title", default=None,
-        help="""force writing nbhosting.title, when provided,
-                even if already present -
-                provide the title, or set to 'h1' to use the first header""")
+        "-t", "--title", action="store", dest="title", default=None,
+        help="""value for nbhosting.title; can be a plain string,
+                or 'h1' to use the first header;
+                by default, the title is not overridden if already present,
+                use the -f option to force a replacement""")
+    parser.add_argument(
+        "-f", "--force-title", action="store", dest="force_title", default=None,
+        help="""force writing nbhosting.title (when provided with -t),
+                even if already present""")
     parser.add_argument(
         "-s", "--style-rank", dest='style_rank', default=None, action='store', type=int,
         help="""make sure the style cell is up-to-date with .style;
@@ -489,7 +504,7 @@ def main():
         if args.verbose:
             print(f"{sys.argv[0]} is opening notebook {notebook}")
         full_monty(
-            notebook, force_title=args.force_title,
+            notebook, title=args.title, force_title=args.force_title,
             license_rank=args.license_rank, style_rank=args.style_rank,
             rise=args.rise,
             exts=args.exts, backquotes=args.backquotes,
