@@ -191,7 +191,7 @@ class Notebook:
         style_path = Path(".style")
 
         if not style_path.exists():
-            raise FileNotFoundError("the style feature requieres a .style file")
+            raise FileNotFoundError("the style feature requires a .style file")
 
         with style_path.open() as feed:
             style_text = feed.read()
