@@ -1,3 +1,7 @@
+# 0.2.1 2022 Sep 29
+
+* normalize licence and style files by ignoring ending newlines
+
 # 0.2.0 2022 Sep 12
 
 * new option -f in cooperation with -t
