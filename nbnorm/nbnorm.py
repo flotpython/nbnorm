@@ -11,7 +11,7 @@ import IPython
 # we drop older versions, requires IPython v4
 assert IPython.version_info[0] >= 4
 
-import nbformat
+#import nbformat
 from nbformat.notebooknode import NotebookNode
 import jupytext
 
@@ -203,7 +203,9 @@ class Notebook:
             raise FileNotFoundError("the style feature requires a .style file")
 
         with style_path.open() as feed:
-            style_text = feed.read()
+            style_text = feed.read().rstrip("\n")
+
+        print(f">${style_text}<")
 
         # a bit rustic but good enough
         def is_style_cell(cell):
@@ -213,7 +215,8 @@ class Notebook:
         # allow the style to appear as first or second
         for cell in self.cells()[:2]:
             if is_style_cell(cell):
-                cell['source'] = style_text
+                if cell['source'] != style_text:
+                    cell['source'] = style_text
                 break
         else:
             self.cells().insert(
@@ -238,7 +241,7 @@ class Notebook:
             raise FileNotFoundError("the license feature requieres a .license file")
 
         with license_path.open() as feed:
-            license_text = feed.read()
+            license_text = feed.read().rstrip("\n")
 
         # a bit rustic but good enough
         def is_license_cell(cell):
