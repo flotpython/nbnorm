@@ -27,7 +27,8 @@ assert IPython.version_info[0] >= 4
 # not customizable yet
 # at the notebook level
 
-rise_metadata_padding = {
+
+RISE_METADATA_PADDING = {
     'rise': {
         "autolaunch" : True,
         "theme": "sky",
@@ -38,19 +39,11 @@ rise_metadata_padding = {
 }
 
 # this was for the video slides, it's bad on regular notebooks
-rise_metadata_clear = {
+RISE_METADATA_CLEAR = {
 #    'celltoolbar': 'Slideshow',
 }
 
-rise_metadata_force = {
-    'rise': {
-#        "backimage" : "media/nologo.png",
-#        "width": "100%",
-#        "height": "100%",
-    }
-}
-
-extensions_metadata_cell_padding = {
+EXTENSIONS_METADATA_CELL_PADDING = {
     "deletable": True,
     "editable": True,
     "run_control": {
@@ -184,19 +177,18 @@ class Notebook:
         if not rise:
             return
         metadata = self.notebook['metadata']
-        pad_metadata(metadata, rise_metadata_padding)
-        pad_metadata(metadata, rise_metadata_force, force=True)
-        clear_metadata(metadata, rise_metadata_clear)
+        pad_metadata(metadata, RISE_METADATA_PADDING)
+        clear_metadata(metadata, RISE_METADATA_CLEAR)
 
-    def fill_extensions_metadata(self, exts):
+    def fill_extensions_metadata(self, extensions):
         """
-        if exts is set, fill each cell metadata's with a hard-wired
+        if extensions is set, fill each cell metadata's with a hard-wired
         set of defaults for extensions; this is to minimize git diffs
         """
-        if not exts:
+        if not extensions:
             return
         for cell in self.cells():
-            pad_metadata(cell['metadata'], extensions_metadata_cell_padding)
+            pad_metadata(cell['metadata'], EXTENSIONS_METADATA_CELL_PADDING)
 
 
     def ensure_style(self, style_rank):
@@ -214,7 +206,7 @@ class Notebook:
         with style_path.open(encoding="utf-8") as feed:
             style_text = feed.read().rstrip("\n")
 
-        print(f">${style_text}<")
+        #print(f">${style_text}<")
 
         # a bit rustic but good enough
         def is_style_cell(cell):
@@ -430,13 +422,13 @@ class Notebook:
 
     def full_monty(self, *, title, force_title,
                    style_rank, license_rank,
-                   rise, exts, backquotes, urls):
+                   rise, extensions, backquotes, urls):
         self.parse()
         self.clear_all_outputs()
         self.remove_empty_cells()
         self.set_title_from_heading1(title=title, force_title=force_title)
         self.fill_rise_metadata(rise)
-        self.fill_extensions_metadata(exts)
+        self.fill_extensions_metadata(extensions)
         if style_rank is not None:
             self.ensure_style(style_rank)
         if license_rank is not None:
@@ -493,7 +485,7 @@ def main():
         "-r", "--rise", dest='rise', default=False, action='store_true',
         help="fill in RISE/livereveal metadata with hard-wired settings")
     parser.add_argument(
-        "-e", "--extensions", dest='exts', action='store_true', default=False,
+        "-e", "--extensions", dest='extensions', action='store_true', default=False,
         help="fill cell metadata for extensions, if missing")
     parser.add_argument(
         "-b", "--backquotes", default=False, action='store_true',
@@ -517,7 +509,7 @@ def main():
             notebook, title=args.title, force_title=args.force_title,
             license_rank=args.license_rank, style_rank=args.style_rank,
             rise=args.rise,
-            exts=args.exts, backquotes=args.backquotes,
+            extensions=args.extensions, backquotes=args.backquotes,
             urls=args.urls, verbose=args.verbose)
 
 if __name__ == '__main__':
