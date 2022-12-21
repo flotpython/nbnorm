@@ -1,19 +1,28 @@
+"""
+convenience tool for normalizing notebooks
+"""
+
+# pylint: disable=missing-function-docstring, missing-class-docstring
+
 import sys
 import re
 from pathlib import Path
 from enum import Enum
+import traceback
+from argparse import ArgumentParser
+
+
+import IPython
+from nbformat.notebooknode import NotebookNode
+import jupytext
+
 
 from nbnorm.xpath import xpath, xpath_create
 
-####################
-import IPython
 
 # we drop older versions, requires IPython v4
 assert IPython.version_info[0] >= 4
 
-#import nbformat
-from nbformat.notebooknode import NotebookNode
-import jupytext
 
 # not customizable yet
 # at the notebook level
@@ -63,29 +72,29 @@ def pad_metadata(metadata, padding, force=False):
     makes sure the keys in padding are defined in metadata
     if force is set, overwrite any previous value
     """
-    for k, v in padding.items():
-        if isinstance(v, dict):
-            sub_meta = metadata.setdefault(k, {})
-            pad_metadata(sub_meta, v, force)
-        if not isinstance(v, dict):
+    for key, value in padding.items():
+        if isinstance(value, dict):
+            sub_meta = metadata.setdefault(key, {})
+            pad_metadata(sub_meta, value, force)
+        if not isinstance(value, dict):
             if force:
-                metadata[k] = v
+                metadata[key] = value
             else:
-                metadata.setdefault(k, v)
+                metadata.setdefault(key, value)
 
 def clear_metadata(metadata, padding):
     """
     makes sure the keys in padding are removed in metadata
     """
-    for k, v in padding.items():
+    for key, value in padding.items():
         # supertree missing in metadata : we're good
-        if k not in metadata:
+        if key not in metadata:
             continue
-        if isinstance(v, dict):
-            sub_meta = metadata[k]
-            clear_metadata(sub_meta, v)
-        if not isinstance(v, dict):
-            del metadata[k]
+        if isinstance(value, dict):
+            sub_meta = metadata[key]
+            clear_metadata(sub_meta, value)
+        if not isinstance(value, dict):
+            del metadata[key]
 
 
 ####################
@@ -98,14 +107,14 @@ class Notebook:
         #self.filename = "{}.ipynb".format(self.name)
         self.filename = self.name
         self.verbose = verbose
+        self.notebook = None
 
 
     def parse(self):
         try:
             self.notebook = jupytext.read(self.filename)
-        except:
+        except Exception:       # pylint: disable=broad-except
             print(f"Could not parse {self.filename}")
-            import traceback
             traceback.print_exc()
 
     # def debug(self, message):
@@ -159,7 +168,7 @@ class Notebook:
                 print(f"---- {self.filename}:\n"
                       f"     title `{old_title}`\n"
                       f"     not changed to `{new_title}`")
-                print(f"  use -f to override")
+                print(f"  use -f to override") # pylint: disable=f-string-without-interpolation
             return
         self.xpath('metadata.nbhosting')['title'] = new_title
         if self.verbose:
@@ -202,7 +211,7 @@ class Notebook:
         if not style_path.exists():
             raise FileNotFoundError("the style feature requires a .style file")
 
-        with style_path.open() as feed:
+        with style_path.open(encoding="utf-8") as feed:
             style_text = feed.read().rstrip("\n")
 
         print(f">${style_text}<")
@@ -240,7 +249,7 @@ class Notebook:
         if not license_path.exists():
             raise FileNotFoundError("the license feature requieres a .license file")
 
-        with license_path.open() as feed:
+        with license_path.open(encoding="utf-8") as feed:
             license_text = feed.read().rstrip("\n")
 
         # a bit rustic but good enough
@@ -285,7 +294,7 @@ class Notebook:
     def empty_cell(self, cell):
         try:
             return cell['cell_type'] == 'code' and not cell['input']
-        except:
+        except KeyError:
             return cell['cell_type'] == 'code' and not cell['source']
 
     def remove_empty_cells(self):
@@ -333,7 +342,7 @@ class Notebook:
             # oddly enough, we observe that the logo cells
             # come up with source being a list, while all others
             # show up as str
-            if type(source) is list:
+            if isinstance(source, list):
                 continue
             new_lines = []
             lines = source.split("\n")
@@ -342,11 +351,10 @@ class Notebook:
             for line in lines:
                 next_type = self.line_class(line)
                 # this seems to be the only case that matters
-                if (curr_type == self.Line.REGULAR
-                    and next_type == self.Line.BULLET):
-                        # insert artificial newline
-                        new_lines.append("")
-                        nb_patches += 1
+                if (curr_type == self.Line.REGULAR and next_type == self.Line.BULLET):
+                    # insert artificial newline
+                    new_lines.append("")
+                    nb_patches += 1
                 # always preserve initial input
                 new_lines.append(line)
                 # remember for next line
@@ -381,8 +389,9 @@ class Notebook:
         for index, cell in enumerate(self.cells(), 1):
             if cell.cell_type != 'markdown':
                 continue
-            lines = cell.source if type(cell.source) is list \
-                else cell.source.split("\n")
+            lines = (cell.source
+                     if isinstance(cell.source, list)
+                     else cell.source.split("\n"))
             in_backquotes = False
             for line in lines:
                 if line.startswith("```"):
@@ -398,8 +407,9 @@ class Notebook:
         for index, cell in enumerate(self.cells(), 1):
             if cell.cell_type != 'markdown':
                 continue
-            lines = cell.source if type(cell.source) is list \
-                else cell.source.split("\n")
+            lines = (cell.source
+                     if isinstance(cell.source, list)
+                     else cell.source.split("\n"))
             for line in lines:
                 match1 = re.search(r'(?P<url>http[s]?://[^/\]\)]*)/', line)
                 if not match1:
@@ -443,13 +453,10 @@ class Notebook:
 def full_monty(name, **kwds):
     verbose = kwds['verbose']
     del kwds['verbose']
-    nb = Notebook(name, verbose)
-    nb.full_monty(**kwds)
+    Notebook(name, verbose).full_monty(**kwds)
 
 
-from argparse import ArgumentParser
-
-usage = """normalize notebooks
+USAGE = """normalize notebooks
  * Metadata
    * checks for nbhosting.title (from first heading1 if missing, or from forced name on the command line)
  * Contents
@@ -461,7 +468,7 @@ usage = """normalize notebooks
 """
 
 def main():
-    parser = ArgumentParser(usage=usage)
+    parser = ArgumentParser(usage=USAGE)
     parser.add_argument(
         "-t", "--title", action="store", dest="title", default=None,
         help="""value for nbhosting.title; can be a plain string,
