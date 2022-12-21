@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 from enum import Enum
 import traceback
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
 
 import IPython
@@ -191,77 +191,52 @@ class Notebook:
             pad_metadata(cell['metadata'], EXTENSIONS_METADATA_CELL_PADDING)
 
 
-    def ensure_style(self, style_rank):
+    def _ensure_item(self, name, cell_type, rank, crumb, template_filename):
+        path = Path(template_filename)
+
+        if not path.exists():
+            raise FileNotFoundError("the {name} feature requires a {template_filename} file")
+
+        with path.open(encoding="utf-8") as feed:
+            text = feed.read().rstrip("\n")
+
+        # a bit rustic but good enough
+        def is_item_cell(cell):
+            source = cell['source'].lower()
+            return re.search(crumb, source) is not None
+
+        # look only in the first 6 cells
+        for cell in self.cells()[:6]:
+            if is_item_cell(cell):
+                if cell['source'] != text:
+                    cell['source'] = text
+                break
+        else:
+            self.cells().insert(
+                rank-1,
+                NotebookNode({
+                    "cell_type": cell_type,
+                    "metadata": {},
+                    "source": text,
+                }))
+
+
+    def ensure_style(self, style_rank, style_crumb):
         """
         make sure one of the first cells is a style cell
 
         the actual text is searched in a file named .style
         """
+        return self._ensure_item("style", "code", style_rank, style_crumb, ".style")
 
-        style_path = Path(".style")
-
-        if not style_path.exists():
-            raise FileNotFoundError("the style feature requires a .style file")
-
-        with style_path.open(encoding="utf-8") as feed:
-            style_text = feed.read().rstrip("\n")
-
-        #print(f">${style_text}<")
-
-        # a bit rustic but good enough
-        def is_style_cell(cell):
-            source = cell['source']
-            return 'HTML(' in source
-
-        # allow the style to appear as first or second
-        for cell in self.cells()[:2]:
-            if is_style_cell(cell):
-                if cell['source'] != style_text:
-                    cell['source'] = style_text
-                break
-        else:
-            self.cells().insert(
-                style_rank-1,
-                NotebookNode({
-                    "cell_type": "code",
-                    "metadata": {},
-                    "source": style_text,
-                }))
-
-
-    def ensure_license(self, license_rank):
+    def ensure_license(self, license_rank, license_crumb):
         """
         make sure one of the first cells is a license cell
 
         the actual text is searched in a file named .license
         """
+        return self._ensure_item("license", "markdown", license_rank, license_crumb, ".license")
 
-        license_path = Path(".license")
-
-        if not license_path.exists():
-            raise FileNotFoundError("the license feature requieres a .license file")
-
-        with license_path.open(encoding="utf-8") as feed:
-            license_text = feed.read().rstrip("\n")
-
-        # a bit rustic but good enough
-        def is_license_cell(cell):
-            source = cell['source'].lower()
-            return 'licence' in source or 'licence' in source
-
-        # allow the license to appear as first or second
-        for cell in self.cells()[:2]:
-            if is_license_cell(cell):
-                cell['source'] = license_text
-                break
-        else:
-            self.cells().insert(
-                license_rank-1,
-                NotebookNode({
-                    "cell_type": "markdown",
-                    "metadata": {},
-                    "source": license_text,
-                }))
 
 
     # I keep the code for these 2 but don't need this any longer
@@ -421,7 +396,8 @@ class Notebook:
 
 
     def full_monty(self, *, title, force_title,
-                   style_rank, license_rank,
+                   style_rank, style_crumb,
+                   license_rank, license_crumb,
                    rise, extensions, backquotes, urls):
         self.parse()
         self.clear_all_outputs()
@@ -430,9 +406,9 @@ class Notebook:
         self.fill_rise_metadata(rise)
         self.fill_extensions_metadata(extensions)
         if style_rank is not None:
-            self.ensure_style(style_rank)
+            self.ensure_style(style_rank, style_crumb)
         if license_rank is not None:
-            self.ensure_license(license_rank)
+            self.ensure_license(license_rank, license_crumb)
         self.fix_ill_formed_markdown_bullets()
         self.spot_long_code_cells()
         if backquotes:
@@ -460,7 +436,7 @@ USAGE = """normalize notebooks
 """
 
 def main():
-    parser = ArgumentParser(usage=USAGE)
+    parser = ArgumentParser(usage=USAGE, formatter_class=ArgumentDefaultsHelpFormatter)
     parser.add_argument(
         "-t", "--title", action="store", dest="title", default=None,
         help="""value for nbhosting.title; can be a plain string,
@@ -477,10 +453,16 @@ def main():
                 provide the style rank, used only for inserting a missing cell;
                 default is to not manage style""")
     parser.add_argument(
+        "-S", "--style-crumb", default="HTML(",
+        help="a cell that contains that string is considered a style cell")
+    parser.add_argument(
         "-l", "--license-rank", dest='license_rank', default=None, action='store', type=int,
         help="""make sure the license cell is up-to-date with .license;
                 provide the license cell rank, used only for inserting a missing cell;
                 default is to not manage license""")
+    parser.add_argument(
+        "-L", "--license-crumb", default="license",
+        help="a cell that contains that string is considered a license cell")
     parser.add_argument(
         "-r", "--rise", dest='rise', default=False, action='store_true',
         help="fill in RISE/livereveal metadata with hard-wired settings")
@@ -501,13 +483,15 @@ def main():
         help="the notebooks to normalize")
 
     args = parser.parse_args()
+    print(args)
 
     for notebook in args.notebooks:
         if args.verbose:
             print(f"{sys.argv[0]} is opening notebook {notebook}")
         full_monty(
             notebook, title=args.title, force_title=args.force_title,
-            license_rank=args.license_rank, style_rank=args.style_rank,
+            license_rank=args.license_rank, license_crumb=args.license_crumb,
+            style_rank=args.style_rank, style_crumb=args.style_crumb,
             rise=args.rise,
             extensions=args.extensions, backquotes=args.backquotes,
             urls=args.urls, verbose=args.verbose)
