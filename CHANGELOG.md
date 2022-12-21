@@ -1,3 +1,8 @@
+# 0.3.0 2022 Dec 21
+
+* with the -L and -S options the caller can configure regexps that are used to
+  determine if a cell is a license or style (resp.) cell
+
 # 0.2.1 2022 Sep 29
 
 * normalize licence and style files by ignoring ending newlines
