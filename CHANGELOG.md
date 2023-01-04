@@ -1,3 +1,8 @@
+# 0.3.1 2023 Jan 4
+
+* bugfix, the crumbs provided for spotting ex- license or style cells needed
+  to be lowercased
+
 # 0.3.0 2022 Dec 21
 
 * with the -L and -S options the caller can configure regexps that are used to
