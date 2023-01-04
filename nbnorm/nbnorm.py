@@ -195,7 +195,7 @@ class Notebook:
         path = Path(template_filename)
 
         if not path.exists():
-            raise FileNotFoundError("the {name} feature requires a {template_filename} file")
+            raise FileNotFoundError(f"the {name} feature requires a {template_filename} file")
 
         with path.open(encoding="utf-8") as feed:
             text = feed.read().rstrip("\n")
@@ -203,6 +203,10 @@ class Notebook:
         # a bit rustic but good enough
         def is_item_cell(cell):
             source = cell['source'].lower()
+            nonlocal crumb
+            crumb = crumb.lower()
+#            if self.verbose:
+#                print(f"for {name}, searching {crumb} in {source}")
             return re.search(crumb, source) is not None
 
         # look only in the first 6 cells
@@ -483,7 +487,6 @@ def main():
         help="the notebooks to normalize")
 
     args = parser.parse_args()
-    print(args)
 
     for notebook in args.notebooks:
         if args.verbose:
