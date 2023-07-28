@@ -1,3 +1,8 @@
+# 0.3.2 2023 Jul 28
+
+* bugfix, the default value for style_crumb was 'HTML(' and because
+  of the open parenthesis it was failing as a regexp
+
 # 0.3.1 2023 Jan 4
 
 * bugfix, the crumbs provided for spotting ex- license or style cells needed
