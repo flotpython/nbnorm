@@ -231,7 +231,8 @@ class Notebook:
 
         the actual text is searched in a file named .style
         """
-        return self._ensure_item("style", "code", style_rank, style_crumb, ".style")
+        return self._ensure_item(
+            "style", "code", style_rank, style_crumb, ".style")
 
     def ensure_license(self, license_rank, license_crumb):
         """
@@ -239,7 +240,8 @@ class Notebook:
 
         the actual text is searched in a file named .license
         """
-        return self._ensure_item("license", "markdown", license_rank, license_crumb, ".license")
+        return self._ensure_item(
+            "license", "markdown", license_rank, license_crumb, ".license")
 
 
 
@@ -457,7 +459,7 @@ def main():
                 provide the style rank, used only for inserting a missing cell;
                 default is to not manage style""")
     parser.add_argument(
-        "-S", "--style-crumb", default="HTML(",
+        "-S", "--style-crumb", default=r"HTML\(",
         help="a cell that contains that string is considered a style cell")
     parser.add_argument(
         "-l", "--license-rank", dest='license_rank', default=None, action='store', type=int,
@@ -483,10 +485,31 @@ def main():
         "-v", "--verbose", dest="verbose", action="store_true", default=False,
         help="show current nbhosting.title")
     parser.add_argument(
-        "notebooks", nargs="+",
+        "notebooks", nargs="*",
         help="the notebooks to normalize")
+    parser.add_argument(
+        "--summary", action="store_true", default=False,
+        help="show summary of all settings - exit immediately"
+    )
 
     args = parser.parse_args()
+
+    if args.summary:
+        print(f"nbhosting.title: {args.title}")
+        print(f"force title: {args.force_title}")
+        print(f"style rank: {args.style_rank}")
+        print(f"style crumb: {args.style_crumb}")
+        print(f"license rank: {args.license_rank}")
+        print(f"license crumb: {args.license_crumb}")
+        print(f"rise: {args.rise}")
+        print(f"extensions: {args.extensions}")
+        print(f"backquotes: {args.backquotes}")
+        print(f"urls: {args.urls}")
+        exit(0)
+
+    if not args.notebooks:
+        parser.print_help()
+        sys.exit(1)
 
     for notebook in args.notebooks:
         if args.verbose:
