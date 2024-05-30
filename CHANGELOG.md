@@ -1,3 +1,9 @@
+# 0.4.0 2024 May 30
+
+* use jupytext config file to read and write files
+  should be more robust, and break endless change loops wrt
+  pygments and similar long-running issues
+
 # 0.3.2 2023 Jul 28
 
 * bugfix, the default value for style_crumb was 'HTML(' and because
