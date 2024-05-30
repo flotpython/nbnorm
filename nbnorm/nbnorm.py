@@ -19,6 +19,13 @@ import jupytext
 
 from nbnorm.xpath import xpath, xpath_create
 
+from jupytext.config import find_jupytext_configuration_file, load_jupytext_configuration_file
+
+def jupytext_config():
+    config_file = find_jupytext_configuration_file('.')
+    config = load_jupytext_configuration_file(config_file)
+    return config
+
 
 LANG_INFO_PADDING = {
     'language_info': {
@@ -80,7 +87,7 @@ class Notebook:
 
     def parse(self):
         try:
-            self.notebook = jupytext.read(self.filename)
+            self.notebook = jupytext.read(self.filename, config=jupytext_config())
         except Exception:       # pylint: disable=broad-except
             print(f"Could not parse {self.filename}")
             traceback.print_exc()
@@ -356,7 +363,7 @@ class Notebook:
 
 
     def save(self):
-        jupytext.write(self.notebook, self.filename)
+        jupytext.write(self.notebook, self.filename, config=jupytext_config())
         print(f"{self.filename} saved")
 
 
