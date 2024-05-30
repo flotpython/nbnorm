@@ -394,9 +394,10 @@ USAGE = """normalize notebooks
    * checks for nbhosting.title (from first heading1 if missing, or from forced name on the command line)
  * Contents
    * makes sure a correct license cell is inserted - defined in .license
+   * same for a style cell - defined in .style
+* Miscell
    * clears all outputs
    * removes empty code cells
-* Miscell
   * also notify of miscell common markdown errors
 """
 
