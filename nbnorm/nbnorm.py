@@ -20,9 +20,12 @@ import jupytext
 from nbnorm.xpath import xpath, xpath_create
 
 
-# we drop older versions, requires IPython v4
-assert IPython.version_info[0] >= 4
-
+LANG_INFO_PADDING = {
+    'language_info': {
+        'name': 'python',
+        'nbconvert_exporter': 'python',
+    }
+}
 
 ####################
 # padding is a set of keys/subkeys
@@ -139,6 +142,13 @@ class Notebook:
         if self.verbose:
             print(f"{self.filename} title -> {self.xpath('metadata.nbhosting.title')}")
 
+    def fill_language_info(self, language_info):
+        """
+        make sure the language_info section is defined
+        """
+        if not language_info:
+            return
+        pad_metadata(self.notebook['metadata'], LANG_INFO_PADDING)
 
     def _ensure_item(self, name, cell_type, rank, crumb, template_filename):
         path = Path(template_filename)
@@ -353,11 +363,13 @@ class Notebook:
     def full_monty(self, *, title, force_title,
                    style_rank, style_crumb,
                    license_rank, license_crumb,
+                   language_info,
                    backquotes, urls):
         self.parse()
         self.clear_all_outputs()
         self.remove_empty_cells()
         self.set_title_from_heading1(title=title, force_title=force_title)
+        self.fill_language_info(language_info)
         if style_rank is not None:
             self.ensure_style(style_rank, style_crumb)
         if license_rank is not None:
@@ -417,6 +429,9 @@ def main():
         "-L", "--license-crumb", default="license",
         help="a cell that contains that string is considered a license cell")
     parser.add_argument(
+        "-i", "--language-info", default=False, action='store_true',
+        help="make sure the language_info section is defined")
+    parser.add_argument(
         "-b", "--backquotes", default=False, action='store_true',
         help="check for use of ``` rather than 4 preceding spaces")
     parser.add_argument(
@@ -442,6 +457,7 @@ def main():
         print(f"style crumb: {args.style_crumb}")
         print(f"license rank: {args.license_rank}")
         print(f"license crumb: {args.license_crumb}")
+        print(f"language info: {args.language_info}")
         print(f"backquotes: {args.backquotes}")
         print(f"urls: {args.urls}")
         exit(0)
@@ -457,6 +473,7 @@ def main():
             notebook, title=args.title, force_title=args.force_title,
             license_rank=args.license_rank, license_crumb=args.license_crumb,
             style_rank=args.style_rank, style_crumb=args.style_crumb,
+            language_info=args.language_info,
             backquotes=args.backquotes,
             urls=args.urls, verbose=args.verbose)
 
