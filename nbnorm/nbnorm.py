@@ -24,34 +24,6 @@ from nbnorm.xpath import xpath, xpath_create
 assert IPython.version_info[0] >= 4
 
 
-# not customizable yet
-# at the notebook level
-
-
-RISE_METADATA_PADDING = {
-    'rise': {
-        "autolaunch" : True,
-        "theme": "sky",
-        "start_slideshow_at": "selected",
-        "slideNumber": "c/t",
-        "transition": "cube",
-    },
-}
-
-# this was for the video slides, it's bad on regular notebooks
-RISE_METADATA_CLEAR = {
-#    'celltoolbar': 'Slideshow',
-}
-
-EXTENSIONS_METADATA_CELL_PADDING = {
-    "deletable": True,
-    "editable": True,
-    "run_control": {
-        "frozen": False,
-        "read_only": False
-    }
-}
-
 ####################
 # padding is a set of keys/subkeys
 # that we want to make sure are defined
@@ -166,29 +138,6 @@ class Notebook:
         self.xpath('metadata.nbhosting')['title'] = new_title
         if self.verbose:
             print(f"{self.filename} title -> {self.xpath('metadata.nbhosting.title')}")
-
-
-    def fill_rise_metadata(self, rise):
-        """
-        if rise is set:
-        if metadata is missing the 'rise' key,
-        fill it with a set of hard-wired settings
-        """
-        if not rise:
-            return
-        metadata = self.notebook['metadata']
-        pad_metadata(metadata, RISE_METADATA_PADDING)
-        clear_metadata(metadata, RISE_METADATA_CLEAR)
-
-    def fill_extensions_metadata(self, extensions):
-        """
-        if extensions is set, fill each cell metadata's with a hard-wired
-        set of defaults for extensions; this is to minimize git diffs
-        """
-        if not extensions:
-            return
-        for cell in self.cells():
-            pad_metadata(cell['metadata'], EXTENSIONS_METADATA_CELL_PADDING)
 
 
     def _ensure_item(self, name, cell_type, rank, crumb, template_filename):
@@ -404,13 +353,11 @@ class Notebook:
     def full_monty(self, *, title, force_title,
                    style_rank, style_crumb,
                    license_rank, license_crumb,
-                   rise, extensions, backquotes, urls):
+                   backquotes, urls):
         self.parse()
         self.clear_all_outputs()
         self.remove_empty_cells()
         self.set_title_from_heading1(title=title, force_title=force_title)
-        self.fill_rise_metadata(rise)
-        self.fill_extensions_metadata(extensions)
         if style_rank is not None:
             self.ensure_style(style_rank, style_crumb)
         if license_rank is not None:
@@ -470,12 +417,6 @@ def main():
         "-L", "--license-crumb", default="license",
         help="a cell that contains that string is considered a license cell")
     parser.add_argument(
-        "-r", "--rise", dest='rise', default=False, action='store_true',
-        help="fill in RISE/livereveal metadata with hard-wired settings")
-    parser.add_argument(
-        "-e", "--extensions", dest='extensions', action='store_true', default=False,
-        help="fill cell metadata for extensions, if missing")
-    parser.add_argument(
         "-b", "--backquotes", default=False, action='store_true',
         help="check for use of ``` rather than 4 preceding spaces")
     parser.add_argument(
@@ -501,8 +442,6 @@ def main():
         print(f"style crumb: {args.style_crumb}")
         print(f"license rank: {args.license_rank}")
         print(f"license crumb: {args.license_crumb}")
-        print(f"rise: {args.rise}")
-        print(f"extensions: {args.extensions}")
         print(f"backquotes: {args.backquotes}")
         print(f"urls: {args.urls}")
         exit(0)
@@ -518,8 +457,7 @@ def main():
             notebook, title=args.title, force_title=args.force_title,
             license_rank=args.license_rank, license_crumb=args.license_crumb,
             style_rank=args.style_rank, style_crumb=args.style_crumb,
-            rise=args.rise,
-            extensions=args.extensions, backquotes=args.backquotes,
+            backquotes=args.backquotes,
             urls=args.urls, verbose=args.verbose)
 
 if __name__ == '__main__':
