@@ -1,5 +1,7 @@
-# 0.4.0 2024 May 30
+# 0.4.1 2024 May 30
 
+* add option -i to fill a default language_info if missing
+* deprecated rise and extensions options
 * use jupytext config file to read and write files
   should be more robust, and break endless change loops wrt
   pygments and similar long-running issues
