@@ -34,6 +34,10 @@ LANG_INFO_PADDING = {
     }
 }
 
+CELLTOOLBAR_CLEAR = {
+    'celltoolbar': 'None'
+}
+
 ####################
 # padding is a set of keys/subkeys
 # that we want to make sure are defined
@@ -370,13 +374,15 @@ class Notebook:
     def full_monty(self, *, title, force_title,
                    style_rank, style_crumb,
                    license_rank, license_crumb,
-                   language_info,
+                   language_info, celltoolbar,
                    backquotes, urls):
         self.parse()
         self.clear_all_outputs()
         self.remove_empty_cells()
         self.set_title_from_heading1(title=title, force_title=force_title)
         self.fill_language_info(language_info)
+        if celltoolbar:
+            clear_metadata(self.notebook['metadata'], CELLTOOLBAR_CLEAR)
         if style_rank is not None:
             self.ensure_style(style_rank, style_crumb)
         if license_rank is not None:
@@ -440,6 +446,9 @@ def main():
         "-i", "--language-info", default=False, action='store_true',
         help="make sure the language_info section is defined")
     parser.add_argument(
+        "-c", "--celltoolbar", default=False, action='store_true',
+        help="clear celltoolbar")
+    parser.add_argument(
         "-b", "--backquotes", default=False, action='store_true',
         help="check for use of ``` rather than 4 preceding spaces")
     parser.add_argument(
@@ -466,6 +475,7 @@ def main():
         print(f"license rank: {args.license_rank}")
         print(f"license crumb: {args.license_crumb}")
         print(f"language info: {args.language_info}")
+        print(f"celltoolbar: {args.celltoolbar}")
         print(f"backquotes: {args.backquotes}")
         print(f"urls: {args.urls}")
         exit(0)
@@ -481,7 +491,7 @@ def main():
             notebook, title=args.title, force_title=args.force_title,
             license_rank=args.license_rank, license_crumb=args.license_crumb,
             style_rank=args.style_rank, style_crumb=args.style_crumb,
-            language_info=args.language_info,
+            language_info=args.language_info, celltoolbar=args.celltoolbar,
             backquotes=args.backquotes,
             urls=args.urls, verbose=args.verbose)
 
