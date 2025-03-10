@@ -116,43 +116,15 @@ class Notebook:
 
 
     def first_heading1(self):
-        for cell in self.cells():
+        for index, cell in enumerate(self.cells()):
             if cell['cell_type'] == 'heading' and cell['level'] == 1:
                 return xpath(cell, 'source')
             elif cell['cell_type'] == 'markdown':
                 lines = self.cell_contents(cell).split("\n")
                 line = lines[0]
                 if line.startswith('# '):
-                    return line[2:]
-        return "NO HEADING 1 found"
-
-    def set_title_from_heading1(self, *, title, force_title):
-        """
-        set 'nbhosting.title'
-        if title=='h1', use the first heading 1 cell
-        if already present: not overwritten except if force_title
-        """
-        # do not do anything if title not provided
-        if title is None:
-            return
-        # retrieve previous one
-        old_title = self.xpath_create('metadata.nbhosting.title', str)
-        # compute what it would become
-        if title == 'h1':
-            new_title = self.first_heading1()
-        else:
-            new_title = title
-        # if already present, do nothing unless force_title
-        if old_title and force_title is None:
-            if self.verbose and new_title != old_title:
-                print(f"---- {self.filename}:\n"
-                      f"     title `{old_title}`\n"
-                      f"     not changed to `{new_title}`")
-                print(f"  use -f to override") # pylint: disable=f-string-without-interpolation
-            return
-        self.xpath('metadata.nbhosting')['title'] = new_title
-        if self.verbose:
-            print(f"{self.filename} title -> {self.xpath('metadata.nbhosting.title')}")
+                    return index, line[2:]
+        return None, "NO HEADING 1 found"
 
     def fill_language_info(self, language_info):
         """
@@ -162,7 +134,10 @@ class Notebook:
             return
         pad_metadata(self.notebook['metadata'], LANG_INFO_PADDING)
 
-    def _ensure_item(self, name, cell_type, rank, crumb, template_filename):
+    def _ensure_item(self, name, cell_type, rank, must_delete, crumb, template_filename):
+        """
+        the actual implementation of ensure_style and ensure_license
+        """
         path = Path(template_filename)
 
         if not path.exists():
@@ -176,43 +151,66 @@ class Notebook:
             source = cell['source'].lower()
             nonlocal crumb
             crumb = crumb.lower()
-#            if self.verbose:
-#                print(f"for {name}, searching {crumb} in {source}")
             return re.search(crumb, source) is not None
 
-        # look only in the first 6 cells
-        for cell in self.cells()[:6]:
+        # search in all cells even if possibly unefficient
+        # copy because if the possible side-effect
+        for cell in self.cells()[:]:
             if is_item_cell(cell):
+                if must_delete:
+                    self.cells().remove(cell)
+                    return
                 if cell['source'] != text:
                     cell['source'] = text
                 break
         else:
-            self.cells().insert(
-                rank-1,
-                NotebookNode({
+            if must_delete:
+                return
+            new_node = NotebookNode({
                     "cell_type": cell_type,
                     "metadata": {},
                     "source": text,
-                }))
+                })
+            if rank == -1:
+                self.cells().append(new_node)
+            else:
+                self.cells().insert(rank-1, new_node)
 
+    def ensure_title(self, title_rank):
+        """
+        make sure the title cell is at the given rank
+        """
+        if title_rank is None:
+            return
+        current_rank, title = self.first_heading1()
+        if current_rank is None:
+            print("no title found - ignoring title_rank option")
+            return
+        if current_rank == title_rank:
+            # already at the right place
+            return
+        # remove the cell from the notebook
+        cell = self.cells().pop(current_rank)
+        # and insert it at the right place
+        self.cells().insert(title_rank, cell)
 
-    def ensure_style(self, style_rank, style_crumb):
+    def ensure_style(self, style_rank, style_delete, style_crumb):
         """
         make sure one of the first cells is a style cell
 
         the actual text is searched in a file named .style
         """
         return self._ensure_item(
-            "style", "code", style_rank, style_crumb, ".style")
+            "style", "code", style_rank, style_delete, style_crumb, ".style")
 
-    def ensure_license(self, license_rank, license_crumb):
+    def ensure_license(self, license_rank, license_delete, license_crumb):
         """
         make sure one of the first cells is a license cell
 
         the actual text is searched in a file named .license
         """
         return self._ensure_item(
-            "license", "markdown", license_rank, license_crumb, ".license")
+            "license", "markdown", license_rank, license_delete, license_crumb, ".license")
 
 
 
@@ -372,22 +370,23 @@ class Notebook:
         print(f"{self.filename} saved")
 
 
-    def full_monty(self, *, title, force_title,
-                   style_rank, style_crumb,
-                   license_rank, license_crumb,
+    def full_monty(self, *, title_rank,
+                   style_rank, style_delete, style_crumb,
+                   license_rank, license_delete, license_crumb,
                    language_info, celltoolbar,
                    backquotes, urls):
         self.parse()
         self.clear_all_outputs()
         self.remove_empty_cells()
-        self.set_title_from_heading1(title=title, force_title=force_title)
         self.fill_language_info(language_info)
         if celltoolbar:
             clear_metadata(self.notebook['metadata'], CELLTOOLBAR_CLEAR)
-        if style_rank is not None:
-            self.ensure_style(style_rank, style_crumb)
-        if license_rank is not None:
-            self.ensure_license(license_rank, license_crumb)
+        if title_rank is not None:
+            self.ensure_title(title_rank)
+        if style_rank is not None or style_delete:
+            self.ensure_style(style_rank, style_delete, style_crumb)
+        if license_rank is not None or license_delete:
+            self.ensure_license(license_rank, license_delete, license_crumb)
         self.fix_ill_formed_markdown_bullets()
         self.spot_long_code_cells()
         if backquotes:
@@ -418,20 +417,18 @@ USAGE = """normalize notebooks
 def main():
     parser = ArgumentParser(usage=USAGE, formatter_class=ArgumentDefaultsHelpFormatter)
     parser.add_argument(
-        "-t", "--title", action="store", dest="title", default=None,
-        help="""value for nbhosting.title; can be a plain string,
-                or 'h1' to use the first header;
-                by default, the title is not overridden if already present,
-                use the -f option to force a replacement""")
-    parser.add_argument(
-        "-f", "--force-title", action="store", dest="force_title", default=None,
-        help="""force writing nbhosting.title (when provided with -t),
-                even if already present""")
+        "-t", "--title-rank", action="store", dest="title_rank", default=None, type=int,
+        help="""if a title cell is found, move it at this cell
+                rank; the title is the first heading1 found in the notebook""")
     parser.add_argument(
         "-s", "--style-rank", dest='style_rank', default=None, action='store', type=int,
         help="""make sure the style cell is up-to-date with .style;
                 provide the style rank, used only for inserting a missing cell;
                 default is to not manage style""")
+    parser.add_argument(
+        "--style-delete", default=False, action='store_true',
+        help="delete the style cell if found"
+    )
     parser.add_argument(
         "-S", "--style-crumb", default=r"HTML\(",
         help="a cell that contains that string is considered a style cell")
@@ -440,6 +437,10 @@ def main():
         help="""make sure the license cell is up-to-date with .license;
                 provide the license cell rank, used only for inserting a missing cell;
                 default is to not manage license""")
+    parser.add_argument(
+        "--license-delete", default=False, action='store_true',
+        help="delete the license cell if found"
+    )
     parser.add_argument(
         "-L", "--license-crumb", default="license",
         help="a cell that contains that string is considered a license cell")
@@ -457,7 +458,7 @@ def main():
         help="tries to spot direct URLs, i.e. used outside of markdown []()")
     parser.add_argument(
         "-v", "--verbose", dest="verbose", action="store_true", default=False,
-        help="show current nbhosting.title")
+        help="not currently used")
     parser.add_argument(
         "notebooks", nargs="*",
         help="the notebooks to normalize")
@@ -469,11 +470,12 @@ def main():
     args = parser.parse_args()
 
     if args.summary:
-        print(f"nbhosting.title: {args.title}")
-        print(f"force title: {args.force_title}")
+        print(f"title_rank: {args.title_rank}")
         print(f"style rank: {args.style_rank}")
+        print(f"style delete: {args.style_delete}")
         print(f"style crumb: {args.style_crumb}")
         print(f"license rank: {args.license_rank}")
+        print(f"license delete: {args.license_delete}")
         print(f"license crumb: {args.license_crumb}")
         print(f"language info: {args.language_info}")
         print(f"celltoolbar: {args.celltoolbar}")
@@ -489,9 +491,9 @@ def main():
         if args.verbose:
             print(f"{sys.argv[0]} is opening notebook {notebook}")
         full_monty(
-            notebook, title=args.title, force_title=args.force_title,
-            license_rank=args.license_rank, license_crumb=args.license_crumb,
-            style_rank=args.style_rank, style_crumb=args.style_crumb,
+            notebook, title_rank=args.title_rank,
+            license_rank=args.license_rank, license_delete=args.license_delete, license_crumb=args.license_crumb,
+            style_rank=args.style_rank, style_delete=args.style_delete, style_crumb=args.style_crumb,
             language_info=args.language_info, celltoolbar=args.celltoolbar,
             backquotes=args.backquotes,
             urls=args.urls, verbose=args.verbose)
