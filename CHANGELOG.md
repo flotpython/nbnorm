@@ -1,3 +1,11 @@
+# 0.5.0 2025 Mar 10
+
+* many not necessarily compatible changes mostly for moving to jb2
+* in particular can now:
+  * move the header cell in 2st position
+  * move a license or style cell to the end
+  * remove a license or style cell
+
 # 0.4.1 2024 May 30
 
 * add option -i to fill a default language_info if missing
