@@ -1,3 +1,7 @@
+# 0.5.1 2025 Mar 12
+
+* can now correctly move / remove style and license cells
+
 # 0.5.0 2025 Mar 10
 
 * many not necessarily compatible changes mostly for moving to jb2
