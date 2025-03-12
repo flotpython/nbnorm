@@ -138,6 +138,8 @@ class Notebook:
         """
         the actual implementation of ensure_style and ensure_license
         """
+        if self.verbose:
+            print(f"ensuring {name} cell {rank=}, {must_delete=}, {crumb=}")
         path = Path(template_filename)
 
         if not path.exists():
@@ -153,15 +155,28 @@ class Notebook:
             crumb = crumb.lower()
             return re.search(crumb, source) is not None
 
+        # there's no way to insert at the end with .insert()
+        def insert_in_rank(L, rank, item):
+            if rank == -1:
+                L.append(item)
+            else:
+                L.insert(rank-1, item)
+
         # search in all cells even if possibly unefficient
-        # copy because if the possible side-effect
-        for cell in self.cells()[:]:
+        cells = self.cells()
+        # copy because of possible side-effect
+        for index, cell in enumerate(cells[:]):
             if is_item_cell(cell):
+                if self.verbose:
+                    print(f"found {name} cell {cell}")
                 if must_delete:
-                    self.cells().remove(cell)
+                    cells.remove(cell)
                     return
                 if cell['source'] != text:
                     cell['source'] = text
+                if self.cells()[rank] != cell:
+                    print(f"moving {name} cell to rank {rank}")
+                    insert_in_rank(cells, rank, cells.pop(index))
                 break
         else:
             if must_delete:
@@ -171,10 +186,8 @@ class Notebook:
                     "metadata": {},
                     "source": text,
                 })
-            if rank == -1:
-                self.cells().append(new_node)
-            else:
-                self.cells().insert(rank-1, new_node)
+            insert_in_rank(cells, rank, new_node)
+
 
     def ensure_title(self, title_rank):
         """
@@ -403,12 +416,13 @@ def full_monty(name, **kwds):
 
 
 USAGE = """normalize notebooks
- * Metadata
-   * checks for nbhosting.title (from first heading1 if missing, or from forced name on the command line)
- * Contents
+* Structure
    * makes sure a correct license cell is inserted - defined in .license
    * same for a style cell - defined in .style
-* Miscell
+   * can make sure the title cell comes first
+* Metadata
+   * miscell - see source code
+* Content
    * clears all outputs
    * removes empty code cells
   * also notify of miscell common markdown errors
