@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "nbnorm"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [ "jupytext", ]
 requires-python = ">=3.8"
 readme = "README.md"

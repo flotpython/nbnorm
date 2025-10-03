@@ -1,3 +1,7 @@
+# 0.6.2 2025 Oct 03
+
+* `--version` option to show version and exit
+
 # 0.6.1 2025 Oct 03
 
 * option -c to clear tags from all cells; use with  
