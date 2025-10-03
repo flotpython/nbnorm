@@ -22,7 +22,7 @@ from nbnorm.xpath import xpath, xpath_create
 from jupytext.config import find_jupytext_configuration_file, load_jupytext_configuration_file
 
 def jupytext_config():
-    config_file = find_jupytext_configuration_file('.')
+    config_file = find_jupytext_configuration_file(str(Path('.').absolute()))
     config = load_jupytext_configuration_file(config_file)
     return config
 
@@ -76,6 +76,25 @@ def clear_metadata(metadata, padding):
         if not isinstance(value, dict):
             del metadata[key]
 
+
+def clear_cell_tags(cell, tags_to_clear):
+    """
+    remove provided tags from metadata.tags
+    """
+    if not hasattr(cell, 'metadata'):
+        return
+    if not hasattr(cell.metadata, 'tags'):
+        return
+    if not isinstance(cell.metadata['tags'], list):
+        return
+    for tag in tags_to_clear:
+        try:
+            cell.metadata['tags'].remove(tag)
+        except ValueError:
+            pass
+    # then cleanup the tags key if empty
+    if len(cell.metadata['tags']) == 0:
+        del cell.metadata['tags']
 
 ####################
 class Notebook:
@@ -354,6 +373,7 @@ class Notebook:
                 if not in_backquotes and line.startswith("    "):
                     print(f"MD4SP: {self.name}:{index} -> {line}")
 
+
     # in one ontebook of w8 we have a lot of urls
     # embedded in quoted sections of the Markdown
     # so they show up as false positive
@@ -378,6 +398,11 @@ class Notebook:
                     print(f"DIRURL: {self.name}:{index} -> {line}")
 
 
+    def clear_tags(self, clear_tags):
+        for index, cell in enumerate(self.cells(), 1):
+            clear_cell_tags(cell, clear_tags)
+
+
     def save(self):
         jupytext.write(self.notebook, self.filename, config=jupytext_config())
         print(f"{self.filename} saved")
@@ -387,6 +412,7 @@ class Notebook:
                    style_rank, style_delete, style_crumb,
                    license_rank, license_delete, license_crumb,
                    language_info, celltoolbar,
+                   clear_tags,
                    backquotes, urls):
         self.parse()
         self.clear_all_outputs()
@@ -394,6 +420,8 @@ class Notebook:
         self.fill_language_info(language_info)
         if celltoolbar:
             clear_metadata(self.notebook['metadata'], CELLTOOLBAR_CLEAR)
+        if clear_tags:
+            self.clear_tags(clear_tags)
         if title_rank is not None:
             self.ensure_title(title_rank)
         if style_rank is not None or style_delete:
@@ -462,7 +490,7 @@ def main():
         "-i", "--language-info", default=False, action='store_true',
         help="make sure the language_info section is defined")
     parser.add_argument(
-        "-c", "--celltoolbar", default=False, action='store_true',
+        "-C", "--celltoolbar", default=False, action='store_true',
         help="clear celltoolbar")
     parser.add_argument(
         "-b", "--backquotes", default=False, action='store_true',
@@ -470,6 +498,10 @@ def main():
     parser.add_argument(
         "-u", "--urls", default=False, action='store_true',
         help="tries to spot direct URLs, i.e. used outside of markdown []()")
+    parser.add_argument(
+        "-c", "--clear-tags", default=[], nargs='*',
+        help="a list of tags to remove from all cells metadata tags",
+    )
     parser.add_argument(
         "-v", "--verbose", dest="verbose", action="store_true", default=False,
         help="not currently used")
@@ -493,6 +525,7 @@ def main():
         print(f"license crumb: {args.license_crumb}")
         print(f"language info: {args.language_info}")
         print(f"celltoolbar: {args.celltoolbar}")
+        print(f"clear_tags: {args.clear_tags}")
         print(f"backquotes: {args.backquotes}")
         print(f"urls: {args.urls}")
         exit(0)
@@ -508,7 +541,7 @@ def main():
             notebook, title_rank=args.title_rank,
             license_rank=args.license_rank, license_delete=args.license_delete, license_crumb=args.license_crumb,
             style_rank=args.style_rank, style_delete=args.style_delete, style_crumb=args.style_crumb,
-            language_info=args.language_info, celltoolbar=args.celltoolbar,
+            language_info=args.language_info, celltoolbar=args.celltoolbar, clear_tags=args.clear_tags,
             backquotes=args.backquotes,
             urls=args.urls, verbose=args.verbose)
 
