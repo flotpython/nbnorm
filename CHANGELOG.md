@@ -1,3 +1,9 @@
+# 0.6.1 2025 Oct 03
+
+* option -c to clear tags from all cells; use with  
+  `nbnorm -c tag1 tag2 -- nb1 nb2 ...`  
+  also pass it a non-exitent tag to just cleanup empty tags lists
+
 # 0.6.0 2025 Oct 03
 
 * package with pyproject.toml
