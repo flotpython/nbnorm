@@ -503,6 +503,10 @@ def main():
         help="a list of tags to remove from all cells metadata tags",
     )
     parser.add_argument(
+        "-V", "--version", action="store_true", default=False,
+        help="show version and exit"
+    )
+    parser.add_argument(
         "-v", "--verbose", dest="verbose", action="store_true", default=False,
         help="not currently used")
     parser.add_argument(
@@ -514,6 +518,11 @@ def main():
     )
 
     args = parser.parse_args()
+
+    if args.version:
+        from .version import __version__
+        print(f"nbnorm version {__version__}")
+        exit(0)
 
     if args.summary:
         print(f"title_rank: {args.title_rank}")
