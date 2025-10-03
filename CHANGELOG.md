@@ -1,3 +1,7 @@
+# 0.6.0 2025 Oct 03
+
+* package with pyproject.toml
+
 # 0.5.1 2025 Mar 12
 
 * can now correctly move / remove style and license cells
